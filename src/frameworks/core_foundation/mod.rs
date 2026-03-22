@@ -11,11 +11,11 @@ pub mod cf_string;
 pub mod cf_type;
 pub mod cf_run_loop_timer;
 
-// Базовые типы, которые ищут cf_string.rs и другие через super::
+// Base types required by sub-modules via super::
 pub type CFIndex = i32;
 pub type CFOptionFlags = u32;
 pub type CFHashCode = u32;
-pub type CFTypeRef = crate::objc::id; // Обычно это указатель на объект
+pub type CFTypeRef = crate::objc::id; 
 
 pub const kCFNotFound: CFIndex = -1;
 
@@ -34,17 +34,15 @@ pub enum CFComparisonResult {
     GreaterThan = 1,
 }
 
-// Заглушки для функций управления памятью, если они нужны
+// Memory management stubs
 pub fn CFRetain(obj: CFTypeRef) -> CFTypeRef { obj }
 pub fn CFRelease(_obj: CFTypeRef) { }
 
-// Если в проекте есть хелпер для хэширования, его тоже можно объявить тут
+// Helper function for hashing
 pub fn hash_helper(data: &str) -> CFHashCode {
-    // Простейшая реализация хэша, если нет специфической
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     let mut s = DefaultHasher::new();
     data.hash(&mut s);
     s.finish() as CFHashCode
 }
-
