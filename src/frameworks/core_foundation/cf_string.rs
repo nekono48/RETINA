@@ -31,6 +31,8 @@ pub const kCFStringEncodingUTF16: CFStringEncoding = kCFStringEncodingUnicode;
 pub const kCFStringEncodingUTF16BE: CFStringEncoding = 0x10000100;
 pub const kCFStringEncodingUTF16LE: CFStringEncoding = 0x14000100;
 pub const kCFStringEncodingISOLatin1: CFStringEncoding = 0x0201;
+// Добавлено для исправления ошибки 0x80000003
+pub const kCFStringEncodingWindowsLatin1: CFStringEncoding = 0x0500;
 
 fn CFStringAppend(
     env: &mut Environment,
@@ -77,9 +79,12 @@ pub fn CFStringConvertEncodingToNSStringEncoding(
         kCFStringEncodingUTF16BE => ns_string::NSUTF16BigEndianStringEncoding,
         kCFStringEncodingUTF16LE => ns_string::NSUTF16LittleEndianStringEncoding,
         kCFStringEncodingISOLatin1 => ns_string::NSISOLatin1StringEncoding,
+        // Исправление: сопоставляем системный код 0x80000003 с Windows Latin 1
+        0x80000003 | kCFStringEncodingWindowsLatin1 => ns_string::NSWindowsCP1252StringEncoding,
         _ => unimplemented!("Unhandled: CFStringEncoding {:#x}", encoding),
     }
 }
+
 fn CFStringConvertNSStringEncodingToEncoding(
     _env: &mut Environment,
     encoding: ns_string::NSStringEncoding,
@@ -92,6 +97,7 @@ fn CFStringConvertNSStringEncodingToEncoding(
         ns_string::NSUTF16BigEndianStringEncoding => kCFStringEncodingUTF16BE,
         ns_string::NSUTF16LittleEndianStringEncoding => kCFStringEncodingUTF16LE,
         ns_string::NSISOLatin1StringEncoding => kCFStringEncodingISOLatin1,
+        ns_string::NSWindowsCP1252StringEncoding => kCFStringEncodingWindowsLatin1,
         _ => unimplemented!("Unhandled: NSStringEncoding {:#x}", encoding),
     }
 }
