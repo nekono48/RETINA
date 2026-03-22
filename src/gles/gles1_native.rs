@@ -910,7 +910,7 @@ impl GLES for GLES1Native<'_> {
         // OES_compressed_paletted_texture is in the common profile of OpenGL ES
         // 1.1, so we can reasonably assume it's supported.
         if PalettedTextureFormat::get_info(internalformat).is_none() {
-        // OES_compressed_paletted_texture is in the common profile of 
+                // OES_compressed_paletted_texture is in the common profile of 
         // OpenGL ES 1.1, so we can reasonably assume it's supported.
         let is_paletted = PalettedTextureFormat::get_info(internalformat).is_some();
         
@@ -919,6 +919,32 @@ impl GLES for GLES1Native<'_> {
             if internalformat == 0x8c92 {
                 log_warn!("ATC RGB (0x8c92) detected. Passing to driver...");
             } else {
+                // If it's something else entirely, we still log it 
+                // instead of panicking.
+                log_err!("Unknown CompressedTexImage2D format: {:#x}", 
+                         internalformat);
+            }
+        } else {
+            log_dbg!("Directly supported texture format: {:#x}", internalformat);
+        }
+
+        // RouteCompTexGles
+        if self.is_gles2 {
+            touchHLE_gl_bindings::gles20::PixelStorei(gles11::UNPACK_ALIGNMENT, 1);
+            
+            // Note: If your PC GPU doesn't support ATC, the texture 
+            // might be black/corrupt, but the game will NO LONGER CRASH.
+            touchHLE_gl_bindings::gles20::CompressedTexImage2D(
+                target,
+                level,
+                internalformat,
+                width,
+                height,
+                border,
+                image_size,
+                data.as_ptr() as *const _,
+            );
+
                 // If it's something else entirely, we still log it 
                 // instead of panicking
                 log_err!("Unknown CompressedTexImage2D format: {:#x}", 
