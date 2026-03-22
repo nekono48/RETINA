@@ -37,7 +37,21 @@ pub struct AudioFileHostObject {
     pub audio_file: audio::AudioFile,
     pub client_data_format: Option<AudioStreamBasicDescription>,
     pub read_pos_bytes: u64,
+#[repr(C, packed)]
+pub struct AudioBufferList<const COUNT: usize> { // Добавили pub
+    pub number_buffers: u32,                     // Добавили pub
+    pub buffers: [AudioBuffer; COUNT],           // Добавили pub
 }
+unsafe impl SafeRead for AudioBufferList<1> {}
+unsafe impl SafeRead for AudioBufferList<2> {}
+
+#[repr(C, packed)]
+pub struct AudioBuffer {                         // Добавили pub
+    pub number_channels: u32,                    // Добавили pub
+    pub data_byte_size: u32,                     // Добавили pub
+    pub data: MutVoidPtr,                        // Добавили pub
+}
+
 
 #[repr(C, packed)]
 pub struct OpaqueAudioFileID {
