@@ -67,7 +67,8 @@ const kAudioFilePropertyMagicCookieData: AudioFilePropertyID = fourcc(b"mgic");
 const kAudioFilePropertyChannelLayout: AudioFilePropertyID = fourcc(b"cmap");
 const kAudioFilePropertyEstimatedDuration: AudioFilePropertyID = fourcc(b"edur");
 
-// --- Новая функция: реализация ExtAudioFile через AudioFile ---
+// --- Extended Audio File Services Implementation ---
+
 pub fn ExtAudioFileOpenURL(
     env: &mut Environment,
     in_url: CFURLRef,
@@ -86,6 +87,31 @@ pub fn ExtAudioFileOpenURL(
         out_ext_audio_file,
     )
 }
+
+pub fn ExtAudioFileGetProperty(
+    env: &mut Environment,
+    in_ext_audio_file: AudioFileID,
+    in_property_id: AudioFilePropertyID,
+    io_data_size: MutPtr<u32>,
+    out_property_data: MutVoidPtr,
+) -> OSStatus {
+    return_if_null!(in_ext_audio_file);
+
+    log_dbg!(
+        "ExtAudioFileGetProperty(prop: {}) -> AudioFileGetProperty()",
+        debug_fourcc(in_property_id)
+    );
+
+    AudioFileGetProperty(
+        env,
+        in_ext_audio_file,
+        in_property_id,
+        io_data_size,
+        out_property_data,
+    )
+}
+
+// --- Audio File Services Implementation ---
 
 pub fn AudioFileOpenURL(
     env: &mut Environment,
@@ -494,7 +520,8 @@ fn AudioFileStreamOpen(
 
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioFileOpenURL(_, _, _, _)),
-    export_c_func!(ExtAudioFileOpenURL(_, _)), // Регистрация ExtAudioFileOpenURL
+    export_c_func!(ExtAudioFileOpenURL(_, _)),
+    export_c_func!(ExtAudioFileGetProperty(_, _, _, _)),
     export_c_func!(AudioFileGetPropertyInfo(_, _, _, _)),
     export_c_func!(AudioFileGetProperty(_, _, _, _)),
     export_c_func!(AudioFileReadBytes(_, _, _, _, _)),
@@ -504,3 +531,4 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioFileClose(_)),
     export_c_func!(AudioFileStreamOpen(_, _, _, _, _)),
 ];
+
