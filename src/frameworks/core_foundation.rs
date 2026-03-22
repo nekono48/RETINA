@@ -4,32 +4,67 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! The Foundation framework.
+pub mod cf_allocator;
+pub mod cf_array;
+pub mod cf_bundle;
+pub mod cf_data;
+pub mod cf_dictionary;
+pub mod cf_locale;
+pub mod cf_number;
+pub mod cf_preferences;
+pub mod cf_run_loop;
+pub mod cf_run_loop_timer;
+pub mod cf_socket;
+pub mod cf_string;
+pub mod cf_type;
+pub mod cf_url;
+pub mod time;
 
-pub mod ns_array;
-pub mod ns_bundle;
-pub mod ns_data;
-pub mod ns_dictionary;
-pub mod ns_error;
-pub mod ns_number;
-pub mod ns_string;
-pub mod ns_url;
-pub mod ns_value;
+use crate::dyld::{FunctionExports, HostDylib};
 
-use crate::dyld::FunctionExports;
-use crate::objc::SelectorMap;
-use crate::Environment;
+pub const DYLIB: HostDylib = HostDylib {
+    path: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+    aliases: &[],
+    class_exports: &[
+        cf_run_loop_timer::CLASSES,
+    ],
+    constant_exports: &[
+        cf_allocator::CONSTANTS,
+        cf_bundle::CONSTANTS,
+        cf_dictionary::CONSTANTS,
+        cf_locale::CONSTANTS,
+        cf_number::CONSTANTS,
+        cf_preferences::CONSTANTS,
+        cf_run_loop::CONSTANTS,
+    ],
+    function_exports: &[
+        FUNCTIONS,
+        cf_array::FUNCTIONS,
+        cf_dictionary::FUNCTIONS,
+        cf_bundle::FUNCTIONS,
+        cf_socket::FUNCTIONS,
+        cf_data::FUNCTIONS,
+        cf_locale::FUNCTIONS,
+        cf_number::FUNCTIONS,
+        cf_preferences::FUNCTIONS,
+        cf_run_loop::FUNCTIONS,
+        cf_run_loop_timer::FUNCTIONS,
+        cf_string::FUNCTIONS,
+        cf_type::FUNCTIONS,
+        cf_url::FUNCTIONS,
+        time::FUNCTIONS,
+    ],
+};
 
-pub fn install(env: &mut Environment, selectors: &mut SelectorMap) {
-    ns_array::register_class(env, selectors);
-    ns_bundle::register_class(env, selectors);
-    ns_data::register_class(env, selectors);
-    ns_dictionary::register_class(env, selectors);
-    ns_error::register_class(env, selectors);
-    ns_number::register_class(env, selectors);
-    ns_string::register_class(env, selectors);
-    ns_url::register_class(env, selectors);
-    ns_value::register_class(env, selectors);
+pub use cf_type::{CFRelease, CFRetain, CFTypeRef};
+pub type CFIndex = i32;
+
+const FUNCTIONS: FunctionExports = &[
+    crate::export_c_func!(CFShow(_)),
+];
+
+fn CFShow(env: &mut crate::Environment, obj: CFTypeRef) {
+    use crate::frameworks::foundation::ns_string::to_rust_string;
+    let description: crate::objc::id = crate::msg![env; obj description];
+    log!("{}", to_rust_string(env, description));
 }
-
-pub const FUNCTIONS: FunctionExports = &[];
