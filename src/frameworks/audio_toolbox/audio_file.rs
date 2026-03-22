@@ -13,10 +13,11 @@ use crate::frameworks::carbon_core::{eofErr, OSStatus};
 use crate::frameworks::core_audio_types::{
     debug_fourcc, fourcc, kAudioFormatAppleIMA4, kAudioFormatFlagIsBigEndian,
     kAudioFormatFlagIsFloat, kAudioFormatFlagIsPacked, kAudioFormatFlagIsSignedInteger,
-    kAudioFormatLinearPCM, AudioBufferList, AudioStreamBasicDescription, // Убедитесь, что AudioBufferList здесь публичный
+    kAudioFormatLinearPCM, AudioStreamBasicDescription,
 };
+// Импортируем AudioBufferList из audio_unit, так как он обычно определен там
+use crate::frameworks::audio_toolbox::audio_unit::AudioBufferList;
 use crate::frameworks::core_foundation::cf_url::CFURLRef;
-// Удален неиспользуемый импорт to_rust_path
 use crate::mem::{guest_size_of, MutPtr, MutVoidPtr, SafeRead};
 use crate::Environment;
 use std::collections::HashMap;
@@ -55,6 +56,7 @@ type AudioFilePermissions = i8;
 pub const kAudioFileReadPermission: AudioFilePermissions = 1;
 
 type AudioFileTypeID = u32;
+#[allow(dead_code)]
 const kAudioFileCAFType: AudioFileTypeID = fourcc(b"caff");
 
 type AudioFilePropertyID = u32;
@@ -122,10 +124,10 @@ fn effective_client_asbd(host_object: &AudioFileHostObject) -> AudioStreamBasicD
     host_object.client_data_format.unwrap_or_else(|| get_asbd(host_object))
 }
 
-// --- AudioFile implementation (Добавлены недостающие функции) ---
+// --- AudioFile implementation ---
 
 pub fn AudioFileOpenURL(
-    env: &mut Environment,
+    _env: &mut Environment,
     _in_url: CFURLRef,
     _in_permissions: AudioFilePermissions,
     _in_file_type_hint: AudioFileTypeID,
@@ -136,13 +138,13 @@ pub fn AudioFileOpenURL(
 }
 
 pub fn AudioFileGetProperty(
-    env: &mut Environment,
-    in_audio_file: AudioFileID,
-    in_property_id: AudioFilePropertyID,
-    io_data_size: MutPtr<u32>,
-    out_property_data: MutVoidPtr,
+    _env: &mut Environment,
+    _in_audio_file: AudioFileID,
+    _in_property_id: AudioFilePropertyID,
+    _io_data_size: MutPtr<u32>,
+    _out_property_data: MutVoidPtr,
 ) -> OSStatus {
-    log_dbg!("AudioFileGetProperty stub for {}", debug_fourcc(in_property_id));
+    log_dbg!("AudioFileGetProperty stub for {}", debug_fourcc(_in_property_id));
     0
 }
 
@@ -288,7 +290,7 @@ pub fn ExtAudioFileRead(
     env: &mut Environment,
     in_ext_audio_file: AudioFileID,
     io_number_frames: MutPtr<u32>,
-    io_data: MutPtr<AudioBufferList>,
+    io_data: MutPtr<AudioBufferList<1>>,
 ) -> OSStatus {
     return_if_null!(in_ext_audio_file);
 
@@ -308,7 +310,7 @@ pub fn ExtAudioFileRead(
     let bytes_per_frame = asbd.bytes_per_frame;
     if bytes_per_frame == 0 { return kAudioFileUnspecifiedError; }
 
-    let mut buffer_list: AudioBufferList = env.mem.read(io_data);
+    let mut buffer_list: AudioBufferList<1> = env.mem.read(io_data);
     if buffer_list.mNumberBuffers == 0 {
         env.mem.write(io_number_frames, 0);
         return 0;
@@ -324,11 +326,10 @@ pub fn ExtAudioFileRead(
         return 0;
     }
 
-    let start = host_object.read_pos_bytes as usize;
-    let out_slice = env.mem.bytes_at_mut(first_buffer.mData.cast(), max_bytes as usize);
+    let start = host_object.read_pos_bytes;
+    let out_slice = env.mem.bytes_at_mut(first_buffer.mData.cast(), max_bytes);
 
-    // ИСПРАВЛЕНИЕ: приведение start к u64
-    let read = match host_object.audio_file.read_bytes(start as u64, out_slice) {
+    let read = match host_object.audio_file.read_bytes(start, out_slice) {
         Ok(n) => n,
         Err(_) => return kAudioFileUnspecifiedError,
     };
@@ -336,9 +337,7 @@ pub fn ExtAudioFileRead(
     host_object.read_pos_bytes += read as u64;
     first_buffer.mDataByteSize = read as u32;
     env.mem.write(io_data, buffer_list);
-    
-    // ИСПРАВЛЕНИЕ: приведение типов для деления и записи
-    env.mem.write(io_number_frames, (read / bytes_per_frame as usize) as u32);
+    env.mem.write(io_number_frames, (read as u32) / bytes_per_frame);
 
     if read == 0 { eofErr } else { 0 }
 }
@@ -364,7 +363,8 @@ pub fn AudioFileOpenWithCallbacks(
         read_callback.call_from_host(env, (client_data, 0_i64, size_u32, data_ptr, bytes_read_ptr));
     if status != 0 { return status; }
 
-    let data_vec = env.mem.bytes_at(data_ptr, env.mem.read(bytes_read_ptr) as usize).to_vec();
+    let actual_size = env.mem.read(bytes_read_ptr) as u32;
+    let data_vec = env.mem.bytes_at(data_ptr, actual_size).to_vec();
 
     let audio_file = match audio::AudioFile::read_from_vec(data_vec) {
         Ok(af) => af,
@@ -396,19 +396,18 @@ fn AudioFileStreamOpen(_: &mut Environment, _: MutVoidPtr, _: MutVoidPtr, _: Mut
 }
 
 pub const FUNCTIONS: FunctionExports = &[
-    export_c_func!(AudioFileOpenURL(_, _, _, _, _)),
-    export_c_func!(ExtAudioFileOpenURL(_, _, _)),
-    export_c_func!(ExtAudioFileGetProperty(_, _, _, _, _)),
-    export_c_func!(ExtAudioFileSetProperty(_, _, _, _, _)),
-    export_c_func!(ExtAudioFileRead(_, _, _, _)),
-    export_c_func!(ExtAudioFileDispose(_, _)),
-    export_c_func!(AudioFileGetPropertyInfo(_, _, _, _, _)),
-    export_c_func!(AudioFileGetProperty(_, _, _, _, _)),
-    export_c_func!(AudioFileReadBytes(_, _, _, _, _, _)),
-    export_c_func!(AudioFileReadPackets(_, _, _, _, _, _, _, _)),
-    export_c_func!(AudioFileReadPacketData(_, _, _, _, _, _, _, _)),
-    export_c_func!(AudioFileOpenWithCallbacks(_, _, _, _, _, _, _, _)),
-    export_c_func!(AudioFileClose(_, _)),
-    export_c_func!(AudioFileStreamOpen(_, _, _, _, _, _)),
+    export_c_func!(AudioFileOpenURL(_, _, _, _)),
+    export_c_func!(ExtAudioFileOpenURL(_, _)),
+    export_c_func!(ExtAudioFileGetProperty(_, _, _, _)),
+    export_c_func!(ExtAudioFileSetProperty(_, _, _, _)),
+    export_c_func!(ExtAudioFileRead(_, _, _)),
+    export_c_func!(ExtAudioFileDispose(_)),
+    export_c_func!(AudioFileGetPropertyInfo(_, _, _, _)),
+    export_c_func!(AudioFileGetProperty(_, _, _, _)),
+    export_c_func!(AudioFileReadBytes(_, _, _, _, _)),
+    export_c_func!(AudioFileReadPackets(_, _, _, _, _, _, _)),
+    export_c_func!(AudioFileReadPacketData(_, _, _, _, _, _, _)),
+    export_c_func!(AudioFileOpenWithCallbacks(_, _, _, _, _, _, _)),
+    export_c_func!(AudioFileClose(_)),
+    export_c_func!(AudioFileStreamOpen(_, _, _, _, _)),
 ];
-
