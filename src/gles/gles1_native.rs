@@ -950,9 +950,7 @@ impl GLES for GLES1Native<'_> {
         if self.is_gles2 {
             touchHLE_gl_bindings::gles20::PixelStorei(gles11::UNPACK_ALIGNMENT, 1);
             
-            // This sends the raw 0x8c92 data to your GPU driver.
-            // Note: If your PC GPU doesn't support ATC, the texture might be black/corrupt,
-            // but the game will NO LONGER CRASH.
+            .
             touchHLE_gl_bindings::gles20::CompressedTexImage2D(
                 target,
                 level,
