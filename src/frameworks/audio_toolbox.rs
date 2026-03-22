@@ -1,11 +1,14 @@
 /*
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
  */
 //! The Audio Toolbox framework.
 
 use crate::audio::openal::{OpenAL, OpenALContext, OpenALManager};
+
+const NO_ERR: u32 = 0;
+const PARAM_ERR: u32 = 0xFFFF_FFCE; // -50
 
 /// Macro for checking if an argument is null and returning `paramErr` if so.
 macro_rules! return_if_null {
@@ -17,26 +20,23 @@ macro_rules! return_if_null {
                 file!(),
                 line!()
             );
-            return crate::frameworks::carbon_core::errors::paramErr;
+            return PARAM_ERR;
         }
     };
 }
 
 // --- Секция функций ExtAudioFile ---
 pub mod ext_audio_file {
-    use crate::frameworks::carbon_core::errors::noErr;
-    use crate::abi::GuestPtr;
+    use super::NO_ERR;
+    use core::ffi::c_void;
 
-    // Используем макрос проекта для регистрации функций
     pub const FUNCTIONS: &[(&str, crate::dyld::HostFunction)] = &[
-        ("_ExtAudioFileOpenURL", host_function!(ext_audio_file_open_url)),
+        ("_ExtAudioFileOpenURL", crate::host_function!(ext_audio_file_open_url)),
     ];
 
-    fn ext_audio_file_open_url(_url: GuestPtr, _out_ext_audio_file: GuestPtr) -> u32 {
+    fn ext_audio_file_open_url(_url: *mut c_void, _out_ext_audio_file: *mut c_void) -> u32 {
         log_dbg!("STUB: ExtAudioFileOpenURL called (preventing panic)");
-        
-        // Возвращаем успех (0), чтобы приложение не падало на старте
-        noErr as u32
+        NO_ERR
     }
 }
 // ------------------------------------
@@ -60,7 +60,7 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
         audio_services::FUNCTIONS,
         audio_session::FUNCTIONS,
         audio_unit::FUNCTIONS,
-        ext_audio_file::FUNCTIONS, // Регистрация здесь
+        ext_audio_file::FUNCTIONS,
     ],
 };
 
@@ -92,6 +92,7 @@ impl LazyALContext {
     ) -> OpenAL<'s> {
         self.get_context(manager).make_current(manager)
     }
+
     pub fn get_context(&mut self, manager: &mut OpenALManager) -> &mut OpenALContext {
         if self.0.is_none() {
             let context = OpenALContext::new(manager).unwrap();
@@ -101,4 +102,3 @@ impl LazyALContext {
         self.0.as_mut().unwrap()
     }
 }
-
