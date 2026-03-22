@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::objc::{id, HostObject, SelectorMap};
+use crate::objc::{id, HostObject, ClassExport, ClassExports};
 use crate::Environment;
 
 pub struct NSNumber {
@@ -17,29 +17,28 @@ impl HostObject for NSNumber {
     }
 }
 
-fn numberWithUnsignedInteger(env: &mut Environment, _class: id, value: u32) -> id {
-    let obj = NSNumber { value };
-    env.objc.register_host_object(Box::new(obj), &mut env.mem)
+fn numberWithUnsignedInteger(env: &mut Environment, _cls: id, val: u32) -> id {
+    let obj = Box::new(NSNumber { value: val });
+    env.objc.register_host_object(obj, &mut env.mem)
 }
 
 fn unsignedIntegerValue(env: &mut Environment, this: id) -> u32 {
-    let host_obj = env.objc.get_host_object(this).expect("Invalid NSNumber instance");
-    let ns_num = host_obj.as_any().downcast_ref::<NSNumber>().expect("Not an NSNumber");
+    let host_obj = env.objc.get_host_object(this)
+        .expect("Invalid NSNumber instance");
+    let ns_num = host_obj.as_any().downcast_ref::<NSNumber>()
+        .expect("Not an NSNumber object");
     ns_num.value
 }
 
-pub fn register_class(env: &mut Environment, selectors: &mut SelectorMap) {
-    crate::objc::objc_class!(
-        env,
-        selectors,
-        "NSNumber",
-        metaclass_methods: {
+pub const CLASSES: ClassExports = &[
+    ClassExport {
+        name: "NSNumber",
+        metaclass_methods: &metaclass_methods!(
             selector!(numberWithUnsignedInteger:) => numberWithUnsignedInteger,
-        },
-        instance_methods: {
+        ),
+        instance_methods: &instance_methods!(
             selector!(unsignedIntegerValue) => unsignedIntegerValue,
             selector!(intValue) => unsignedIntegerValue,
-        }
-    );
-}
-
+        ),
+    }
+];
