@@ -1548,18 +1548,11 @@ impl GLES for GLES1Native<'_> {
     unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
         gles11::MapBufferOES(target, access)
     }
-    unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GL
-            unsafe fn GetBufferParameteriv(&mut self, target: GLenum, pname: GLenum, params: *mut GLint) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::GetBufferParameteriv(target, pname, params)
-        } else {
-            gles11::GetBufferParameteriv(target, pname, params)
-        }
-    }
-    unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
+        unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
         gles11::MapBufferOES(target, access)
     }
+
     unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GLboolean {
         gles11::UnmapBufferOES(target)
     }
-} // Закрывает impl GLES for GLES1Native
+} // Это закрывает блок impl GLES for GLES1Native
