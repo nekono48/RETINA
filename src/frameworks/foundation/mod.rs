@@ -4,12 +4,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! The Foundation framework.
-
-use crate::dyld::{export_c_func, FunctionExports};
-use crate::objc::id;
-use crate::Environment;
-
 pub mod _nib_archive_decoder;
 pub mod ns_array;
 pub mod ns_autorelease_pool;
@@ -33,7 +27,7 @@ pub mod ns_log;
 pub mod ns_notification;
 pub mod ns_notification_center;
 pub mod ns_null;
-pub mod ns_number;
+pub mod ns_number; // Наш новый модуль
 pub mod ns_objc_runtime;
 pub mod ns_object;
 pub mod ns_process_info;
@@ -52,7 +46,9 @@ pub mod ns_user_defaults;
 pub mod ns_value;
 pub mod ns_xml_parser;
 
-pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
+use crate::dyld::{FunctionExports, HostDylib};
+
+pub const DYLIB: HostDylib = HostDylib {
     path: "/System/Library/Frameworks/Foundation.framework/Foundation",
     aliases: &[],
     class_exports: &[
@@ -77,7 +73,7 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
         ns_notification::CLASSES,
         ns_notification_center::CLASSES,
         ns_null::CLASSES,
-        ns_number::CLASSES,
+        ns_number::CLASSES, // Регистрация NSNumber
         ns_object::CLASSES,
         ns_process_info::CLASSES,
         ns_property_list_serialization::CLASSES,
@@ -112,62 +108,4 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
     ],
 };
 
-#[derive(Default)]
-pub struct State {
-    pub ns_autorelease_pool: ns_autorelease_pool::State,
-    pub ns_bundle: ns_bundle::State,
-    pub ns_file_manager: ns_file_manager::State,
-    pub ns_locale: ns_locale::State,
-    pub ns_notification_center: ns_notification_center::State,
-    pub ns_null: ns_null::State,
-    pub ns_process_info: ns_process_info::State,
-    pub ns_run_loop: ns_run_loop::State,
-    pub ns_string: ns_string::State,
-    pub ns_thread: ns_thread::State,
-    pub ns_user_defaults: ns_user_defaults::State,
-}
-
-pub type NSInteger = i32;
-pub type NSUInteger = u32;
-pub const NSNotFound: i32 = 0x7fffffff;
-
-#[derive(Debug)]
-#[repr(C, packed)]
-pub struct NSRange {
-    pub location: NSUInteger,
-    pub length: NSUInteger,
-}
-unsafe impl crate::mem::SafeRead for NSRange {}
-crate::abi::impl_GuestRet_for_large_struct!(NSRange);
-
-impl crate::abi::GuestArg for NSRange {
-    const REG_COUNT: usize = 2;
-    fn from_regs(regs: &[u32]) -> Self {
-        NSRange {
-            location: crate::abi::GuestArg::from_regs(&regs[0..1]),
-            length: crate::abi::GuestArg::from_regs(&regs[1..2]),
-        }
-    }
-    fn to_regs(self, regs: &mut [u32]) {
-        self.location.to_regs(&mut regs[0..1]);
-        self.length.to_regs(&mut regs[1..2]);
-    }
-}
-
-fn NSStringFromRange(env: &mut Environment, range: NSRange) -> id {
-    let loc = range.location;
-    let len = range.length;
-    let string = format!("{{{loc}, {len}}}");
-    ns_string::from_rust_string(env, string)
-}
-
-pub type NSComparisonResult = NSInteger;
-pub const NSOrderedAscending: NSComparisonResult = -1;
-pub const NSOrderedSame: NSComparisonResult = 0;
-pub const NSOrderedDescending: NSComparisonResult = 1;
-pub type NSTimeInterval = f64;
-
-#[allow(non_camel_case_types)]
-pub type unichar = u16;
-
-const FUNCTIONS: FunctionExports = &[export_c_func!(NSStringFromRange(_))];
+const FUNCTIONS: FunctionExports = &[];
