@@ -8,7 +8,7 @@ use std::ffi::CStr;
 use std::marker::PhantomData;
 use log; 
 
-
+pub struct GLES1NativeContext {   // <--- THIS LINE WAS MISSING
     gl_ctx: GLContext,
     is_loaded: bool,
     is_gles2: bool,
@@ -23,6 +23,7 @@ impl GLESContext for GLES1NativeContext {
         let is_gles2 = options.gles_version == 2;
         let version = if is_gles2 {
             GLVersion::GLES20
+
         } else {
             GLVersion::GLES11
         };
