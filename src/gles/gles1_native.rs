@@ -1,17 +1,3 @@
-/*
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
- */
-//! Passthrough for a native OpenGL ES 1.1 driver.
-//!
-//! Unlike for the GLES1-on-GL2 driver, there's almost no validation of
-//! arguments here, because we assume the driver is complete and the app uses it
-//! correctly. The exception is where we expect an extension could be used that
-//! the driver might not support (e.g. vendor-specific texture compression).
-//! In such cases, we should reject vendor-specific things unless we've made
-//! sure we can emulate them on all host platforms for touchHLE.
-
 use super::gles11_raw as gles11;
 use super::gles11_raw::types::*;
 use super::gles_generic::GLES;
@@ -20,8 +6,9 @@ use super::GLESContext;
 use crate::window::{GLContext, GLVersion, Window};
 use std::ffi::CStr;
 use std::marker::PhantomData;
+use log; 
 
-pub struct GLES1NativeContext {
+
     gl_ctx: GLContext,
     is_loaded: bool,
     is_gles2: bool,
