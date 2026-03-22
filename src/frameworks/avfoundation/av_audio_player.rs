@@ -51,6 +51,9 @@ impl HostObject for AVAudioPlayerHostObject {}
 
 pub const CLASSES: ClassExports = objc_classes! {
 
+// КРИТИЧЕСКИ ВАЖНО: Эта строка должна быть здесь для работы макроса
+(env, this, _cmd);
+
 @implementation AVAudioPlayer: NSObject
 
 + (id)allocWithZone:(NSZonePtr)_zone {
@@ -124,6 +127,7 @@ pub const CLASSES: ClassExports = objc_classes! {
     env.mem.free(tmp.cast());
     res
 }
+
 - (())setVolume:(f32)volume {
     let host_object = env.objc.borrow_mut::<AVAudioPlayerHostObject>(this);
     host_object.volume = volume;
@@ -206,14 +210,10 @@ pub const CLASSES: ClassExports = objc_classes! {
 
 - (bool)play {
     () = msg![env; this prepareToPlay];
-
     let aq_ref = env.objc.borrow_mut::<AVAudioPlayerHostObject>(this).audio_queue.unwrap();
-
     env.objc.borrow_mut::<AVAudioPlayerHostObject>(this).is_playing = true;
-
     let status = AudioQueueStart(env, aq_ref, Ptr::null());
     assert_eq!(status, 0);
-
     true
 }
 
@@ -279,6 +279,7 @@ pub const CLASSES: ClassExports = objc_classes! {
     log_dbg!("[(AVAudioPlayer *) {:?} currentTime] -> {:?}", this, current_time);
     current_time
 }
+
 - (())setCurrentTime:(NSTimeInterval)currentTime {
     let host_object = env.objc.borrow_mut::<AVAudioPlayerHostObject>(this);
     host_object.set_current_time = currentTime;
@@ -339,10 +340,7 @@ fn _touchHLE_AVAudioPlayerOutputBufferHelper(
 ) {
     let av_audio_player: id = in_user_data.cast();
     let class: Class = msg![env; av_audio_player class];
-    log_dbg!(
-        "_touchHLE_AVAudioPlayerOutputBufferHelper on object of class: {}",
-        env.objc.get_class_name(class)
-    );
+    
     assert_eq!(
         class,
         env.objc.get_known_class("AVAudioPlayer", &mut env.mem)
@@ -368,7 +366,7 @@ fn _touchHLE_AVAudioPlayerOutputBufferHelper(
     env.mem.write(num_packets_ptr, num_packets_to_read);
     let mut audio_queue_buffer = env.mem.read(in_buf);
     
-    // ИСПРАВЛЕНИЕ: Передаем 0 вместо false для соответствия типу u32
+    // ИСПРАВЛЕНИЕ: Передаем 0 (u32) вместо false (bool)
     let status = AudioFileReadPackets(
         env,
         audio_file_id.unwrap(),
