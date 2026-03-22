@@ -17,7 +17,7 @@ use crate::frameworks::core_audio_types::{
 };
 use crate::frameworks::core_foundation::cf_url::CFURLRef;
 use crate::frameworks::foundation::ns_url::to_rust_path;
-use crate::mem::{guest_size_of, GuestUSize, MutPtr, MutVoidPtr, SafeRead};
+use crate::mem::{guest_size_of, MutPtr, MutVoidPtr, SafeRead};
 use crate::Environment;
 use std::collections::HashMap;
 
@@ -59,8 +59,12 @@ pub const kAudioFilePropertyDataFormat: AudioFilePropertyID = fourcc(b"dfmt");
 const kAudioFilePropertyAudioDataByteCount: AudioFilePropertyID = fourcc(b"bcnt");
 const kAudioFilePropertyAudioDataPacketCount: AudioFilePropertyID = fourcc(b"pcnt");
 pub const kAudioFilePropertyPacketSizeUpperBound: AudioFilePropertyID = fourcc(b"pkub");
+
+#[allow(dead_code)]
 const kAudioFilePropertyMagicCookieData: AudioFilePropertyID = fourcc(b"mgic");
+#[allow(dead_code)]
 const kAudioFilePropertyChannelLayout: AudioFilePropertyID = fourcc(b"cmap");
+
 const kAudioFilePropertyEstimatedDuration: AudioFilePropertyID = fourcc(b"edur");
 
 // ExtAudioFile properties
@@ -187,7 +191,7 @@ pub fn AudioFileOpenURL(
     assert!(in_permissions == kAudioFileReadPermission);
 
     if in_file_type_hint != 0 && in_file_type_hint != kAudioFileCAFType {
-        unimplemented!("Unsupported file type hint");
+        unimplemented!("Unsupported file type hint: {}", debug_fourcc(in_file_type_hint));
     }
 
     let path = to_rust_path(env, in_file_ref);
@@ -228,12 +232,12 @@ pub fn AudioFileOpenWithCallbacks(
     0
 }
 
-fn property_size(property_id: AudioFilePropertyID) -> Option<GuestUSize> {
+fn property_size(property_id: AudioFilePropertyID) -> Option<u32> {
     match property_id {
-        kAudioFilePropertyDataFormat => Some(guest_size_of::<AudioStreamBasicDescription>()),
-        kAudioFilePropertyAudioDataByteCount | kAudioFilePropertyAudioDataPacketCount => Some(guest_size_of::<u64>()),
-        kAudioFilePropertyPacketSizeUpperBound => Some(guest_size_of::<u32>()),
-        kAudioFilePropertyEstimatedDuration => Some(guest_size_of::<f64>()),
+        kAudioFilePropertyDataFormat => Some(guest_size_of::<AudioStreamBasicDescription>() as u32),
+        kAudioFilePropertyAudioDataByteCount | kAudioFilePropertyAudioDataPacketCount => Some(guest_size_of::<u64>() as u32),
+        kAudioFilePropertyPacketSizeUpperBound => Some(guest_size_of::<u32>() as u32),
+        kAudioFilePropertyEstimatedDuration => Some(guest_size_of::<f64>() as u32),
         _ => None,
     }
 }
@@ -247,7 +251,7 @@ pub fn AudioFileGetPropertyInfo(
 ) -> OSStatus {
     return_if_null!(in_audio_file);
     if let Some(size) = property_size(in_property_id) {
-        if !out_data_size.is_null() { env.mem.write(out_data_size, size as u32); }
+        if !out_data_size.is_null() { env.mem.write(out_data_size, size); }
         if !is_writable.is_null() { env.mem.write(is_writable, 0); }
         0
     } else {
@@ -264,7 +268,7 @@ pub fn AudioFileGetProperty(
 ) -> OSStatus {
     return_if_null!(in_audio_file);
     let Some(req_size) = property_size(in_property_id) else { return kAudioFileUnsupportedProperty; };
-    if env.mem.read(io_data_size) != req_size as u32 { return kAudioFileBadPropertySizeError; }
+    if env.mem.read(io_data_size) != req_size { return kAudioFileBadPropertySizeError; }
 
     let host_object = State::get(&mut env.framework_state).audio_files.get_mut(&in_audio_file).unwrap();
 
@@ -355,4 +359,3 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioFileClose(_)),
     export_c_func!(AudioFileStreamOpen(_, _, _, _, _)),
 ];
-
