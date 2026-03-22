@@ -7,8 +7,8 @@ use crate::window::{GLContext, GLVersion, Window};
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
-// This fixes the "unresolved module" and "unused import" errors simultaneously
-use log::{debug, warn, error}; 
+// Використовуємо log::{self, ...} щоб уникнути помилок про невикористаний модуль
+use log::{self, debug, warn, error}; 
 
 pub struct GLES1NativeContext {
     gl_ctx: GLContext,
@@ -16,12 +16,15 @@ pub struct GLES1NativeContext {
     is_gles2: bool,
 }
 
+impl GLESContext for GLES1NativeContext {
+    fn description() -> &'static str {
+        "Native OpenGL ES 1.1"
+    }
 
     fn new(window: &mut Window, options: &crate::options::Options) -> Result<Self, String> {
         let is_gles2 = options.gles_version == 2;
         let version = if is_gles2 {
             GLVersion::GLES20
-
         } else {
             GLVersion::GLES11
         };
@@ -1362,41 +1365,5 @@ impl GLES for GLES1Native<'_> {
 
     unsafe fn DeleteFramebuffersOES(&mut self, n: GLsizei, framebuffers: *const GLuint) {
         if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::DeleteFramebuffers(n, framebuffers)
-        } else {
-            gles11::DeleteFramebuffersOES(n, framebuffers)
-        }
-    }
+            touchHLE_gl_bindings::gles20::DeleteFramebuffers(n, framebuffers
 
-    unsafe fn DeleteRenderbuffersOES(&mut self, n: GLsizei, renderbuffers: *const GLuint) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::DeleteRenderbuffers(n, renderbuffers)
-        } else {
-            gles11::DeleteRenderbuffersOES(n, renderbuffers)
-        }
-    }
-
-    unsafe fn GenerateMipmapOES(&mut self, target: GLenum) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::GenerateMipmap(target)
-        } else {
-            gles11::GenerateMipmapOES(target)
-        }
-    }
-
-        unsafe fn GetBufferParameteriv(&mut self, target: GLenum, pname: GLenum, params: *mut GLint) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::GetBufferParameteriv(target, pname, params)
-        } else {
-            gles11::GetBufferParameteriv(target, pname, params)
-        }
-    }
-
-    unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
-        gles11::MapBufferOES(target, access)
-    }
-
-    unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GLboolean {
-        gles11::UnmapBufferOES(target)
-    }
-}
