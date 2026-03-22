@@ -248,7 +248,7 @@ pub const CLASSES: ClassExports = objc_classes! {
 }
 
 - (())setDelegate:(id)delegate {
-    crate::warn!("UIView: stubbed setDelegate:{:?} (called likely due to failed NIB loading fallback)", delegate);
+    log!("UIView: stubbed setDelegate:{:?} (called likely due to failed NIB loading fallback)", delegate);
 }
 
 - (())layoutSubviews {
