@@ -6,9 +6,9 @@
 //! The Audio Toolbox framework.
 
 use crate::audio::openal::{OpenAL, OpenALContext, OpenALManager};
+use crate::context::Context; // Добавлено для работы с контекстом
 
 /// Macro for checking if an argument is null and returning `paramErr` if so.
-/// This seems to be what the real Audio Toolbox does, and some apps rely on it.
 macro_rules! return_if_null {
     ($param:ident) => {
         if $param.is_null() {
@@ -22,6 +22,27 @@ macro_rules! return_if_null {
         }
     };
 }
+
+// --- Новая секция функций ExtAudioFile ---
+pub mod ext_audio_file {
+    use super::*;
+    use crate::frameworks::carbon_core::noErr;
+
+    pub const FUNCTIONS: &[(&str, crate::dyld::HostFunction)] = &[
+        ("_ExtAudioFileOpenURL", ext_audio_file_open_url),
+    ];
+
+    fn ext_audio_file_open_url(ctx: &mut Context) -> u32 {
+        let _url = ctx.get_arg(0); // CFURLRef
+        let _out_ext_audio_file = ctx.get_arg(1); // ExtAudioFileRef*
+        
+        log_dbg!("STUB: ExtAudioFileOpenURL called (preventing panic)");
+        
+        // Возвращаем 0 (noErr), чтобы эмулятор не паниковал и шел дальше
+        noErr as u32
+    }
+}
+// ------------------------------------------
 
 pub mod audio_components;
 pub mod audio_file;
@@ -42,6 +63,7 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
         audio_services::FUNCTIONS,
         audio_session::FUNCTIONS,
         audio_unit::FUNCTIONS,
+        ext_audio_file::FUNCTIONS, // ДОБАВЛЕНО: Регистрация новых функций
     ],
 };
 
@@ -53,6 +75,7 @@ pub struct State {
     audio_session: audio_session::State,
     al_context: LazyALContext,
 }
+
 impl State {
     pub fn make_al_context_current<'s, 'manager: 's>(
         &'s mut self,
