@@ -251,6 +251,10 @@ pub const CLASSES: ClassExports = objc_classes! {
     log!("UIView: stubbed setDelegate:{:?} (called likely due to failed NIB loading fallback)", delegate);
 }
 
+- (())setAnimationInterval:(f64)interval {
+    log!("UIView: stubbed setAnimationInterval:{}", interval);
+}
+
 - (())layoutSubviews {
     // On iOS 5.1 and earlier, the default implementation of this method does
     // nothing.
