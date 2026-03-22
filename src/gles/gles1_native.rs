@@ -6,18 +6,16 @@ use super::GLESContext;
 use crate::window::{GLContext, GLVersion, Window};
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use log; 
 
-pub struct GLES1NativeContext {   // <--- THIS LINE WAS MISSING
+// This fixes the "unresolved module" and "unused import" errors simultaneously
+use log::{debug, warn, error}; 
+
+pub struct GLES1NativeContext {
     gl_ctx: GLContext,
     is_loaded: bool,
     is_gles2: bool,
 }
 
-impl GLESContext for GLES1NativeContext {
-    fn description() -> &'static str {
-        "Native OpenGL ES 1.1"
-    }
 
     fn new(window: &mut Window, options: &crate::options::Options) -> Result<Self, String> {
         let is_gles2 = options.gles_version == 2;
