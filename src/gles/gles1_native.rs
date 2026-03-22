@@ -1398,7 +1398,7 @@ impl GLES for GLES1Native<'_> {
         }
     }
 
-    unsafe fn GetBufferParameteriv(&mut self, target: GLenum, pname: GLenum, params: *mut GLint) {
+        unsafe fn GetBufferParameteriv(&mut self, target: GLenum, pname: GLenum, params: *mut GLint) {
         if self.is_gles2 {
             touchHLE_gl_bindings::gles20::GetBufferParameteriv(target, pname, params)
         } else {
@@ -1411,5 +1411,6 @@ impl GLES for GLES1Native<'_> {
     }
 
     unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GLboolean {
-        gles
-
+        gles11::UnmapBufferOES(target)
+    }
+}
