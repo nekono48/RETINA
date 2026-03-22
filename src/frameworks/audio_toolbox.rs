@@ -1,16 +1,14 @@
 /*
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 //! The Audio Toolbox framework.
 
 use crate::audio::openal::{OpenAL, OpenALContext, OpenALManager};
 
-const NO_ERR: u32 = 0;
-const PARAM_ERR: u32 = 0xFFFF_FFCE; // -50
-
 /// Macro for checking if an argument is null and returning `paramErr` if so.
+/// This seems to be what the real Audio Toolbox does, and some apps rely on it.
 macro_rules! return_if_null {
     ($param:ident) => {
         if $param.is_null() {
@@ -20,26 +18,10 @@ macro_rules! return_if_null {
                 file!(),
                 line!()
             );
-            return PARAM_ERR;
+            return crate::frameworks::carbon_core::paramErr;
         }
     };
 }
-
-// --- Секция функций ExtAudioFile ---
-pub mod ext_audio_file {
-    use super::NO_ERR;
-    use core::ffi::c_void;
-
-    pub const FUNCTIONS: &[(&str, crate::dyld::HostFunction)] = &[
-        ("_ExtAudioFileOpenURL", crate::host_function!(ext_audio_file_open_url)),
-    ];
-
-    fn ext_audio_file_open_url(_url: *mut c_void, _out_ext_audio_file: *mut c_void) -> u32 {
-        log_dbg!("STUB: ExtAudioFileOpenURL called (preventing panic)");
-        NO_ERR
-    }
-}
-// ------------------------------------
 
 pub mod audio_components;
 pub mod audio_file;
@@ -60,19 +42,17 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
         audio_services::FUNCTIONS,
         audio_session::FUNCTIONS,
         audio_unit::FUNCTIONS,
-        ext_audio_file::FUNCTIONS,
     ],
 };
 
 #[derive(Default)]
 pub struct State {
-    pub audio_file: audio_file::State,
-    pub audio_queue: audio_queue::State,
-    pub audio_components: audio_components::State,
-    pub audio_session: audio_session::State,
+    audio_file: audio_file::State,
+    audio_queue: audio_queue::State,
+    audio_components: audio_components::State,
+    audio_session: audio_session::State,
     al_context: LazyALContext,
 }
-
 impl State {
     pub fn make_al_context_current<'s, 'manager: 's>(
         &'s mut self,
@@ -92,7 +72,6 @@ impl LazyALContext {
     ) -> OpenAL<'s> {
         self.get_context(manager).make_current(manager)
     }
-
     pub fn get_context(&mut self, manager: &mut OpenALManager) -> &mut OpenALContext {
         if self.0.is_none() {
             let context = OpenALContext::new(manager).unwrap();
@@ -102,3 +81,4 @@ impl LazyALContext {
         self.0.as_mut().unwrap()
     }
 }
+
