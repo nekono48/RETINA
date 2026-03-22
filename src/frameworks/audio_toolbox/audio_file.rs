@@ -25,6 +25,7 @@ use std::collections::HashMap;
 pub struct State {
     pub audio_files: HashMap<AudioFileID, AudioFileHostObject>,
 }
+
 impl State {
     pub fn get(framework_state: &mut crate::frameworks::State) -> &mut Self {
         &mut framework_state.audio_toolbox.audio_file
@@ -71,8 +72,6 @@ const kAudioFilePropertyEstimatedDuration: AudioFilePropertyID = fourcc(b"edur")
 const kExtAudioFilePropertyFileDataFormat: u32 = fourcc(b"ffmt");
 const kExtAudioFilePropertyClientDataFormat: u32 = fourcc(b"cfmt");
 const kExtAudioFilePropertyFileLengthFrames: u32 = fourcc(b"#frm");
-
-// --- Helpers ---
 
 fn get_asbd(host_object: &AudioFileHostObject) -> AudioStreamBasicDescription {
     let AudioDescription {
@@ -123,7 +122,7 @@ fn effective_client_asbd(host_object: &AudioFileHostObject) -> AudioStreamBasicD
     host_object.client_data_format.unwrap_or_else(|| get_asbd(host_object))
 }
 
-// --- ExtAudioFile Implementation ---
+// --- ExtAudioFile implementation ---
 
 pub fn ExtAudioFileOpenURL(
     env: &mut Environment,
@@ -141,20 +140,26 @@ pub fn ExtAudioFileGetProperty(
     out_property_data: MutVoidPtr,
 ) -> OSStatus {
     return_if_null!(in_ext_audio_file);
+
     let host_object = State::get(&mut env.framework_state)
         .audio_files
         .get_mut(&in_ext_audio_file)
         .unwrap();
+
     match in_property_id {
         x if x == kExtAudioFilePropertyFileDataFormat => {
             let req_size = guest_size_of::<AudioStreamBasicDescription>() as u32;
-            if env.mem.read(io_data_size) != req_size { return kAudioFileBadPropertySizeError; }
+            if env.mem.read(io_data_size) != req_size {
+                return kAudioFileBadPropertySizeError;
+            }
             env.mem.write(out_property_data.cast(), get_asbd(host_object));
             0
         }
         x if x == kExtAudioFilePropertyClientDataFormat => {
             let req_size = guest_size_of::<AudioStreamBasicDescription>() as u32;
-            if env.mem.read(io_data_size) != req_size { return kAudioFileBadPropertySizeError; }
+            if env.mem.read(io_data_size) != req_size {
+                return kAudioFileBadPropertySizeError;
+            }
             env.mem.write(out_property_data.cast(), effective_client_asbd(host_object));
             0
         }
@@ -164,7 +169,8 @@ pub fn ExtAudioFileGetProperty(
             }
             if !out_property_data.is_null() {
                 let desc = host_object.audio_file.audio_description();
-                let frames = host_object.audio_file.packet_count() as i64 * desc.frames_per_packet as i64;
+                let frames =
+                    host_object.audio_file.packet_count() as i64 * desc.frames_per_packet as i64;
                 env.mem.write(out_property_data.cast(), frames);
             }
             0
@@ -181,22 +187,29 @@ pub fn ExtAudioFileSetProperty(
     in_property_data: MutVoidPtr,
 ) -> OSStatus {
     return_if_null!(in_ext_audio_file);
+
     let host_object = State::get(&mut env.framework_state)
         .audio_files
         .get_mut(&in_ext_audio_file)
         .unwrap();
+
     match in_property_id {
         x if x == kExtAudioFilePropertyClientDataFormat => {
             if in_property_data_size != guest_size_of::<AudioStreamBasicDescription>() as u32 {
                 return kAudioFileBadPropertySizeError;
             }
-            if in_property_data.is_null() { return kAudioFileUnspecifiedError; }
+            if in_property_data.is_null() {
+                return kAudioFileUnspecifiedError;
+            }
             let asbd: AudioStreamBasicDescription = env.mem.read(in_property_data.cast());
             host_object.client_data_format = Some(asbd);
             0
         }
         x if x == kExtAudioFilePropertyFileDataFormat => kAudioFileUnsupportedProperty,
-        _ => { log_dbg!("ExtAudioFileSetProperty stub for {}", debug_fourcc(in_property_id)); 0 }
+        _ => {
+            log_dbg!("ExtAudioFileSetProperty stub for {}", debug_fourcc(in_property_id));
+            0
+        }
     }
 }
 
@@ -207,7 +220,11 @@ pub fn ExtAudioFileRead(
     io_data: MutPtr<AudioBufferList>,
 ) -> OSStatus {
     return_if_null!(in_ext_audio_file);
-    if io_number_frames.is_null() || io_data.is_null() { return kAudioFileUnspecifiedError; }
+
+    if io_number_frames.is_null() || io_data.is_null() {
+        return kAudioFileUnspecifiedError;
+    }
+
     let mut frames_requested = env.mem.read(io_number_frames);
     if frames_requested == 0 { return 0; }
 
@@ -227,8 +244,14 @@ pub fn ExtAudioFileRead(
     }
 
     let first_buffer = &mut buffer_list.mBuffers[0];
-    let max_bytes = first_buffer.mDataByteSize.min(frames_requested.saturating_mul(bytes_per_frame));
-    if max_bytes == 0 { env.mem.write(io_number_frames, 0); return 0; }
+    let max_bytes = first_buffer
+        .mDataByteSize
+        .min(frames_requested.saturating_mul(bytes_per_frame));
+
+    if max_bytes == 0 {
+        env.mem.write(io_number_frames, 0);
+        return 0;
+    }
 
     let start = host_object.read_pos_bytes as usize;
     let out_slice = env.mem.bytes_at_mut(first_buffer.mData.cast(), max_bytes);
@@ -248,22 +271,28 @@ pub fn ExtAudioFileRead(
 
 // --- AudioFile functions ---
 
-pub fn AudioFileOpenURL(
+pub fn AudioFileOpenWithCallbacks(
     env: &mut Environment,
-    in_file_ref: CFURLRef,
-    in_permissions: AudioFilePermissions,
-    in_file_type_hint: AudioFileTypeID,
+    client_data: MutVoidPtr,
+    read_callback: GuestFunction,
+    _write_callback: GuestFunction,
+    getsize_callback: GuestFunction,
+    _setsize_callback: GuestFunction,
+    _in_file_type_hint: AudioFileTypeID,
     out_audio_file: MutPtr<AudioFileID>,
 ) -> OSStatus {
-    return_if_null!(in_file_ref);
-    assert!(in_permissions == kAudioFileReadPermission);
+    let size: i64 = getsize_callback.call_from_host(env, (client_data,));
+    let size_u32 = size as u32;
+    let data_ptr: MutPtr<u8> = env.mem.alloc(size_u32).cast();
+    let bytes_read_ptr: MutPtr<u32> = env.mem.alloc_and_write(0u32).cast();
 
-    if in_file_type_hint != 0 && in_file_type_hint != kAudioFileCAFType {
-        unimplemented!("Unsupported file type hint: {}", debug_fourcc(in_file_type_hint));
-    }
+    let status: OSStatus =
+        read_callback.call_from_host(env, (client_data, 0_i64, size_u32, data_ptr, bytes_read_ptr));
+    if status != 0 { return status; }
 
-    let path = to_rust_path(env, in_file_ref);
-    let audio_file = match audio::AudioFile::open_for_reading(path, &env.fs) {
+    let data_vec = env.mem.bytes_at(data_ptr, env.mem.read(bytes_read_ptr)).to_vec();
+
+    let audio_file = match audio::AudioFile::read_from_vec(data_vec) {
         Ok(af) => af,
         Err(_) => return kAudioFileUnsupportedFileTypeError,
     };
@@ -271,17 +300,26 @@ pub fn AudioFileOpenURL(
     let guest_af = env.mem.alloc_and_write(OpaqueAudioFileID { _filler: 0 });
     State::get(&mut env.framework_state).audio_files.insert(
         guest_af,
-        AudioFileHostObject {
-            audio_file,
-            client_data_format: None,
-            read_pos_bytes: 0,
-        },
+        AudioFileHostObject { audio_file, client_data_format: None, read_pos_bytes: 0 },
     );
     env.mem.write(out_audio_file, guest_af);
     0
 }
 
-// --- Остальные AudioFileGetProperty, AudioFileReadBytes, AudioFileReadPackets и закрытие
+pub fn AudioFileClose(env: &mut Environment, in_af: AudioFileID) -> OSStatus {
+    if State::get(&mut env.framework_state).audio_files.remove(&in_af).is_some() {
+        env.mem.free(in_af.cast());
+        0
+    } else { kAudioFileUnspecifiedError }
+}
+
+pub fn ExtAudioFileDispose(env: &mut Environment, in_ext_audio_file: AudioFileID) -> OSStatus {
+    AudioFileClose(env, in_ext_audio_file)
+}
+
+fn AudioFileStreamOpen(_: &mut Environment, _: MutVoidPtr, _: MutVoidPtr, _: MutVoidPtr, _: u32, _: MutVoidPtr) -> OSStatus {
+    kAudioFileUnspecifiedError
+}
 
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(AudioFileOpenURL(_, _, _, _)),
