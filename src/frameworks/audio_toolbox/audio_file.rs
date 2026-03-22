@@ -1,9 +1,9 @@
 /*
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
- */
-//! `AudioFile.h` (Audio File Services)
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
+//! AudioFile.h (Audio File Services)
 
 use crate::abi::{CallFromHost, GuestFunction};
 use crate::audio; // Keep this module namespaced to avoid confusion
@@ -89,9 +89,8 @@ fn make_asbd_from_audio_description(
             is_float,
             is_little_endian,
         } => {
-            let is_packed =
-                (bits_per_channel * channels_per_frame * frames_per_packet)
-                    == (bytes_per_packet * 8);
+            let is_packed = (bits_per_channel * channels_per_frame * frames_per_packet)
+                == (bytes_per_packet * 8);
             let format_flags = (u32::from(is_float) * kAudioFormatFlagIsFloat)
                 | (u32::from((!is_float) && matches!(bits_per_channel, 16 | 24))
                     * kAudioFormatFlagIsSignedInteger)
@@ -197,6 +196,47 @@ pub fn ExtAudioFileGetProperty(
     }
 }
 
+pub fn ExtAudioFileSetProperty(
+    env: &mut Environment,
+    in_ext_audio_file: AudioFileID,
+    in_property_id: AudioFilePropertyID,
+    in_property_data_size: u32,
+    in_property_data: MutVoidPtr,
+) -> OSStatus {
+    return_if_null!(in_ext_audio_file);
+
+    log_dbg!(
+        "ExtAudioFileSetProperty(prop: {}, size: {})",
+        debug_fourcc(in_property_id),
+        in_property_data_size
+    );
+
+    match in_property_id {
+        x if x == kExtAudioFilePropertyClientDataFormat
+            || x == kExtAudioFilePropertyFileDataFormat =>
+        {
+            // Игнорируем установку формата (пока stub)
+            log_dbg!("Ignoring format set (stub)");
+            0
+        }
+
+        x if x == kExtAudioFilePropertyClientChannelLayout
+            || x == kExtAudioFilePropertyFileChannelLayout =>
+        {
+            log_dbg!("Ignoring channel layout set (stub)");
+            0
+        }
+
+        _ => {
+            log!(
+                "Unimplemented ExtAudioFileSetProperty: {}",
+                debug_fourcc(in_property_id)
+            );
+            0
+        }
+    }
+}
+
 // --- Audio File Services Implementation ---
 
 pub fn AudioFileOpenURL(
@@ -264,7 +304,7 @@ pub fn AudioFileOpenWithCallbacks(
     if _write_callback.to_ptr().is_null() || _setsize_callback.to_ptr().is_null() {
         log_dbg!(
             "AudioFileOpenWithCallbacks() called with (unsupported) \
-             write({:?})/set_size({:?}) callbacks!",
+            write({:?})/set_size({:?}) callbacks!",
             _write_callback,
             _setsize_callback
         );
@@ -427,19 +467,17 @@ pub fn AudioFileGetProperty(
                         _reserved: 0,
                     }
                 }
-                audio::AudioFormat::AppleIma4 => {
-                    AudioStreamBasicDescription {
-                        sample_rate,
-                        format_id: kAudioFormatAppleIMA4,
-                        format_flags: 0,
-                        bytes_per_packet,
-                        frames_per_packet,
-                        bytes_per_frame: 0,
-                        channels_per_frame,
-                        bits_per_channel,
-                        _reserved: 0,
-                    }
-                }
+                audio::AudioFormat::AppleIma4 => AudioStreamBasicDescription {
+                    sample_rate,
+                    format_id: kAudioFormatAppleIMA4,
+                    format_flags: 0,
+                    bytes_per_packet,
+                    frames_per_packet,
+                    bytes_per_frame: 0,
+                    channels_per_frame,
+                    bits_per_channel,
+                    _reserved: 0,
+                },
             };
             env.mem.write(out_property_data.cast(), desc);
         }
@@ -608,15 +646,17 @@ fn AudioFileStreamOpen(
 }
 
 pub const FUNCTIONS: FunctionExports = &[
-    export_c_func!(AudioFileOpenURL(_, _, _, _)),
-    export_c_func!(ExtAudioFileOpenURL(_, _)),
-    export_c_func!(ExtAudioFileGetProperty(_, _, _, _)),
-    export_c_func!(AudioFileGetPropertyInfo(_, _, _, _)),
-    export_c_func!(AudioFileGetProperty(_, _, _, _)),
-    export_c_func!(AudioFileReadBytes(_, _, _, _, _)),
-    export_c_func!(AudioFileReadPackets(_, _, _, _, _, _, _)),
-    export_c_func!(AudioFileReadPacketData(_, _, _, _, _, _, _)),
-    export_c_func!(AudioFileOpenWithCallbacks(_, _, _, _, _, _, _)),
-    export_c_func!(AudioFileClose(_)),
-    export_c_func!(AudioFileStreamOpen(_, _, _, _, _)),
+    export_c_func!(AudioFileOpenURL(_, _, _, _, _)),
+    export_c_func!(ExtAudioFileOpenURL(_, _, _)),
+    export_c_func!(ExtAudioFileGetProperty(_, _, _, _, _)),
+    export_c_func!(ExtAudioFileSetProperty(_, _, _, _, _)),
+    export_c_func!(AudioFileGetPropertyInfo(_, _, _, _, _)),
+    export_c_func!(AudioFileGetProperty(_, _, _, _, _)),
+    export_c_func!(AudioFileReadBytes(_, _, _, _, _, _)),
+    export_c_func!(AudioFileReadPackets(_, _, _, _, _, _, _, _)),
+    export_c_func!(AudioFileReadPacketData(_, _, _, _, _, _, _, _)),
+    export_c_func!(AudioFileOpenWithCallbacks(_, _, _, _, _, _, _, _)),
+    export_c_func!(AudioFileClose(_, _)),
+    export_c_func!(AudioFileStreamOpen(_, _, _, _, _, _)),
 ];
+
