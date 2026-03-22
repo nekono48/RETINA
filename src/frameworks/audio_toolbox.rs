@@ -6,7 +6,6 @@
 //! The Audio Toolbox framework.
 
 use crate::audio::openal::{OpenAL, OpenALContext, OpenALManager};
-use crate::context::Context; // Добавлено для работы с контекстом
 
 /// Macro for checking if an argument is null and returning `paramErr` if so.
 macro_rules! return_if_null {
@@ -18,31 +17,29 @@ macro_rules! return_if_null {
                 file!(),
                 line!()
             );
-            return crate::frameworks::carbon_core::paramErr;
+            return crate::frameworks::carbon_core::errors::paramErr;
         }
     };
 }
 
-// --- Новая секция функций ExtAudioFile ---
+// --- Секция функций ExtAudioFile ---
 pub mod ext_audio_file {
-    use super::*;
-    use crate::frameworks::carbon_core::noErr;
+    use crate::frameworks::carbon_core::errors::noErr;
+    use crate::abi::GuestPtr;
 
+    // Используем макрос проекта для регистрации функций
     pub const FUNCTIONS: &[(&str, crate::dyld::HostFunction)] = &[
-        ("_ExtAudioFileOpenURL", ext_audio_file_open_url),
+        ("_ExtAudioFileOpenURL", host_function!(ext_audio_file_open_url)),
     ];
 
-    fn ext_audio_file_open_url(ctx: &mut Context) -> u32 {
-        let _url = ctx.get_arg(0); // CFURLRef
-        let _out_ext_audio_file = ctx.get_arg(1); // ExtAudioFileRef*
-        
+    fn ext_audio_file_open_url(_url: GuestPtr, _out_ext_audio_file: GuestPtr) -> u32 {
         log_dbg!("STUB: ExtAudioFileOpenURL called (preventing panic)");
         
-        // Возвращаем 0 (noErr), чтобы эмулятор не паниковал и шел дальше
+        // Возвращаем успех (0), чтобы приложение не падало на старте
         noErr as u32
     }
 }
-// ------------------------------------------
+// ------------------------------------
 
 pub mod audio_components;
 pub mod audio_file;
@@ -63,16 +60,16 @@ pub const DYLIB: crate::dyld::HostDylib = crate::dyld::HostDylib {
         audio_services::FUNCTIONS,
         audio_session::FUNCTIONS,
         audio_unit::FUNCTIONS,
-        ext_audio_file::FUNCTIONS, // ДОБАВЛЕНО: Регистрация новых функций
+        ext_audio_file::FUNCTIONS, // Регистрация здесь
     ],
 };
 
 #[derive(Default)]
 pub struct State {
-    audio_file: audio_file::State,
-    audio_queue: audio_queue::State,
-    audio_components: audio_components::State,
-    audio_session: audio_session::State,
+    pub audio_file: audio_file::State,
+    pub audio_queue: audio_queue::State,
+    pub audio_components: audio_components::State,
+    pub audio_session: audio_session::State,
     al_context: LazyALContext,
 }
 
@@ -104,3 +101,4 @@ impl LazyALContext {
         self.0.as_mut().unwrap()
     }
 }
+
