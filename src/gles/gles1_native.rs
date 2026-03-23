@@ -254,4 +254,3 @@ unsafe fn CopyTexImage2D(
     unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GLboolean {
         gles11::UnmapBufferOES(target)
     }
-}
