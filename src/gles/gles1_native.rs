@@ -7,7 +7,7 @@ use crate::window::{GLContext, GLVersion, Window};
 use std::ffi::CStr;
 use std::marker::PhantomData;
 
-// Використовуємо log::{self, ...} щоб уникнути помилок про невикористаний модуль
+// Test
 use log::{self, debug, warn, error}; 
 
 pub struct GLES1NativeContext {
