@@ -1363,9 +1363,15 @@ impl GLES for GLES1Native<'_> {
         }
     }
 
-    unsafe fn DeleteFramebuffersOES(&mut self, n: GLsizei, framebuffers: *const GLuint) {
+        unsafe fn DeleteFramebuffersOES(&mut self, n: GLsizei, framebuffers: *const GLuint) {
         if self.is_gles2 {
-                        unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
+            touchHLE_gl_bindings::gles20::DeleteFramebuffers(n, framebuffers);
+        } else {
+            gles11::DeleteFramebuffersOES(n, framebuffers);
+        }
+    }
+
+    unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
         gles11::MapBufferOES(target, access)
     }
 
