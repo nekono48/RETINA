@@ -1365,38 +1365,7 @@ impl GLES for GLES1Native<'_> {
 
     unsafe fn DeleteFramebuffersOES(&mut self, n: GLsizei, framebuffers: *const GLuint) {
         if self.is_gles2 {
-                    if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::DeleteFramebuffers(n, framebuffers);
-        } else {
-            gles11::DeleteFramebuffersOES(n, framebuffers);
-        }
-    }
-
-    unsafe fn DeleteRenderbuffersOES(&mut self, n: GLsizei, renderbuffers: *const GLuint) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::DeleteRenderbuffers(n, renderbuffers);
-        } else {
-            gles11::DeleteRenderbuffersOES(n, renderbuffers);
-        }
-    }
-
-    unsafe fn GenerateMipmapOES(&mut self, target: GLenum) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::GenerateMipmap(target);
-        } else {
-            gles11::GenerateMipmapOES(target);
-        }
-    }
-
-    unsafe fn GetBufferParameteriv(&mut self, target: GLenum, pname: GLenum, params: *mut GLint) {
-        if self.is_gles2 {
-            touchHLE_gl_bindings::gles20::GetBufferParameteriv(target, pname, params);
-        } else {
-            gles11::GetBufferParameteriv(target, pname, params);
-        }
-    }
-
-    unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
+                        unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
         gles11::MapBufferOES(target, access)
     }
 
