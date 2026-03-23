@@ -1352,10 +1352,7 @@ impl GLES for GLES1Native<'_> {
             touchHLE_gl_bindings::gles20::GetRenderbufferParameteriv(target, pname, params)
         } else {
             gles11::GetRenderbufferParameterivOES(target, pname, params)
-        }
-    }
-
-    unsafe fn CheckFramebufferStatusOES(&mut self, target: GLenum) -> GLenum {
+            unsafe fn CheckFramebufferStatusOES(&mut self, target: GLenum) -> GLenum {
         if self.is_gles2 {
             touchHLE_gl_bindings::gles20::CheckFramebufferStatus(target)
         } else {
@@ -1363,7 +1360,15 @@ impl GLES for GLES1Native<'_> {
         }
     }
 
-            unsafe fn DeleteRenderbuffersOES(&mut self, n: GLsizei, renderbuffers: *const GLuint) {
+    unsafe fn DeleteFramebuffersOES(&mut self, n: GLsizei, framebuffers: *const GLuint) {
+        if self.is_gles2 {
+            touchHLE_gl_bindings::gles20::DeleteFramebuffers(n, framebuffers);
+        } else {
+            gles11::DeleteFramebuffersOES(n, framebuffers);
+        }
+    }
+
+    unsafe fn DeleteRenderbuffersOES(&mut self, n: GLsizei, renderbuffers: *const GLuint) {
         if self.is_gles2 {
             touchHLE_gl_bindings::gles20::DeleteRenderbuffers(n, renderbuffers);
         } else {
@@ -1386,3 +1391,12 @@ impl GLES for GLES1Native<'_> {
             gles11::GetBufferParameteriv(target, pname, params);
         }
     }
+
+    unsafe fn MapBufferOES(&mut self, target: GLenum, access: GLenum) -> *mut GLvoid {
+        gles11::MapBufferOES(target, access)
+    }
+
+    unsafe fn UnmapBufferOES(&mut self, target: GLenum) -> GLboolean {
+        gles11::UnmapBufferOES(target)
+    }
+}
